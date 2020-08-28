@@ -95,7 +95,7 @@ public class AutenticationClientController {
     }
     
     @GetMapping("/registro/listarUsuarios")
-    public  Map<String, Object> listarUsuarios() {
+    public  ResponseEntity<Object> listarUsuarios() {
         Object listadoUsuarios = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -112,16 +112,16 @@ public class AutenticationClientController {
 		        Object registroDto = g.fromJson(response.getBody(), Object.class);
 				listadoUsuarios = registroDto;
 				res.put("respuesta", listadoUsuarios);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			  res.put("respuesta", e.getResponseBodyAsString());
+			  return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @GetMapping("/registro/listarUsuario/{id}")
-    public  Map<String, Object> listarUsuariosId(@PathVariable String id) {
+    public  ResponseEntity<Object> listarUsuariosId(@PathVariable String id) {
         Object listadoUsuarios = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -138,16 +138,16 @@ public class AutenticationClientController {
 		        Object registroDto = g.fromJson(response.getBody(), Object.class);
 				listadoUsuarios = registroDto;
 				res.put("respuesta", listadoUsuarios);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			    res.put("respuesta", e.getResponseBodyAsString());
+			    return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @PostMapping("/registro/registrarUsuario")
-    public  Map<String, Object> registrarUsuario(@RequestBody RegistroDTO registroDTO) {
+    public ResponseEntity<Object> registrarUsuario(@RequestBody RegistroDTO registroDTO) {
         Object listadoUsuarios = null;
         Map<String, Object> res = new HashMap<>();
         try {
@@ -157,16 +157,16 @@ public class AutenticationClientController {
 		        Object registroDto = g.fromJson(response.getBody(), Object.class);
 				listadoUsuarios = registroDto;
 				res.put("respuesta", listadoUsuarios);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @PutMapping("/registro/modificarUsuario/{id}")
-    public  Map<String, Object> modificarUsuario(@RequestBody RegistroDTO registroDTO, @PathVariable Long id) {
+    public  ResponseEntity<Object> modificarUsuario(@RequestBody RegistroDTO registroDTO, @PathVariable Long id) {
         Object listadoUsuarios = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -184,16 +184,16 @@ public class AutenticationClientController {
 		        Object registroDto = g.fromJson(response.getBody(), Object.class);
 				listadoUsuarios = registroDto;
 				res.put("respuesta", listadoUsuarios);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @DeleteMapping("/registro/eliminarUsuario/{id}")
-    public  Map<String, Object> eliminarUsuario(@PathVariable String id) {
+    public  ResponseEntity<Object> eliminarUsuario(@PathVariable String id) {
         Object listadoUsuarios = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -210,18 +210,18 @@ public class AutenticationClientController {
 		        Object registroDto = g.fromJson(response.getBody(), Object.class);
 				listadoUsuarios = registroDto;
 				res.put("respuesta", listadoUsuarios);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     /*  Tipo Id */
     
     @GetMapping("/tipoidentificacion/obtenerTipoId")
-    public  Map<String, Object> listarTiposId() {
+    public  ResponseEntity<Object> listarTiposId() {
         Object listado = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -238,16 +238,16 @@ public class AutenticationClientController {
 		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
 		        listado = listadoDto;
 				res.put("respuesta", listado);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @GetMapping("/tipoidentificacion/obtenerTipoId/{id}")
-    public  Map<String, Object> listarTipoId(@PathVariable String id) {
+    public  ResponseEntity<Object> listarTipoId(@PathVariable String id) {
         Object listado = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -264,16 +264,16 @@ public class AutenticationClientController {
 		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
 		        listado = listadoDto;
 				res.put("respuesta", listado);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @PostMapping("/tipoidentificacion/registrarTipoId")
-    public  Map<String, Object> registrarTipoID(@RequestBody TipoIdentificacionDTO tipoIdDTO) {
+    public ResponseEntity<Object> registrarTipoID(@RequestBody TipoIdentificacionDTO tipoIdDTO) {
     	  Object listado = null;
           Map<String, Object> res = new HashMap<>();
           HttpHeaders headers = new HttpHeaders();
@@ -289,16 +289,16 @@ public class AutenticationClientController {
 		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
 		        listado = listadoDTO;
 				res.put("respuesta", listado);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
     @PutMapping("/tipoidentificacion/modificarTipoId/{id}")
-    public  Map<String, Object> modificarTipo(@RequestBody TipoIdentificacionDTO tipoIdDTO, @PathVariable Long id) {
+    public  ResponseEntity<Object> modificarTipo(@RequestBody TipoIdentificacionDTO tipoIdDTO, @PathVariable Long id) {
         Object listado = null;
         Map<String, Object> res = new HashMap<>();
         HttpHeaders headers = new HttpHeaders();
@@ -316,11 +316,11 @@ public class AutenticationClientController {
 		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
 		        listado = listadoDto;
 				res.put("respuesta", listado);
-				return res;
+				return new ResponseEntity<>(res, HttpStatus.OK);
 		
 		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
-			return res;
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
 		} 
     }
     
