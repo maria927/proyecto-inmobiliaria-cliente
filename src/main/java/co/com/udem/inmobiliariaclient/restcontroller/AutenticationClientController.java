@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -39,553 +41,623 @@ import co.com.udem.inmobiliariaclient.repository.UserTokenRepository;
 @RestController
 
 public class AutenticationClientController {
-	
+
 	private String currentToken;
-	
+
 	@Autowired
-    RestTemplate restTemplate;
-   
-    @Autowired
-    UserTokenRepository userTokenRepository;
-   
-    @Autowired
-    UserToken userToken;
+	RestTemplate restTemplate;
 
-    
-    @PostMapping("/autenticar")
-    public AutenticationResponseDTO autenticar(@RequestBody AutenticationRequestDTO autenticationRequestDTO) {
-    	
-    	//Con balanceador de carga
-    	
-//    	ServiceInstance serviceInstance=loadBalancer.choose("clubfutbol");
-//        System.out.println(serviceInstance.getUri());
-//        String baseUrl=serviceInstance.getUri().toString();
-//        baseUrl=baseUrl+"/auth/signin";
-//        ResponseEntity<String> postResponse = restTemplate.postForEntity(baseUrl, autenticationRequestDTO, String.class);
-//        System.out.println("Respuesta: "+postResponse.getBody());  //Recibe un xml
-//        
-//        Gson g = new Gson();
-//        AutenticationResponseDTO autenticationResponseDTO = g.fromJson(postResponse.getBody(), AutenticationResponseDTO.class);
-//        userToken.setUsername(autenticationResponseDTO.getUsername());
-//        userToken.setToken(autenticationResponseDTO.getToken());
-//        userTokenRepository.save(userToken);
-//        return autenticationResponseDTO.getToken();
- 
-    	
-    	 ///////////Sin balanceador//////////////
-    	
-        ResponseEntity<String> postResponse = restTemplate.postForEntity("http://localhost:9092/auth/signin", autenticationRequestDTO, String.class);
-        Gson g = new Gson();
-        AutenticationResponseDTO autenticationResponseDTO = g.fromJson(postResponse.getBody(), AutenticationResponseDTO.class);
-        userToken.setUsername(autenticationResponseDTO.getUsername());
-        userToken.setToken(autenticationResponseDTO.getToken());
-        String usuario = userTokenRepository.findByUsername(autenticationResponseDTO.getUsername());
-        if (usuario == null) {
-        	userTokenRepository.save(userToken);
-		}
-        else
-        {
-        	userTokenRepository.updateToken(autenticationResponseDTO.getToken(),autenticationResponseDTO.getUsername());
-        }
+	@Autowired
+	UserTokenRepository userTokenRepository;
 
-    	currentToken = userTokenRepository.obtenerToken(autenticationResponseDTO.getUsername());
-        
-        return autenticationResponseDTO;
-       
-    }
-    
-    @GetMapping("/registro/listarUsuarios")
-    public  ResponseEntity<Object> listarUsuarios() {
-        Object listadoUsuarios = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+	@Autowired
+	UserToken userToken;
+
+	@Autowired
+	private LoadBalancerClient loadBalancer;
+
+	@PostMapping("/autenticar")
+	public AutenticationResponseDTO autenticar(@RequestBody AutenticationRequestDTO autenticationRequestDTO) {
+
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/auth/signin";
+
+		ResponseEntity<String> postResponse = restTemplate.postForEntity(baseUrl, autenticationRequestDTO,
+				String.class);
+		Gson g = new Gson();
+		AutenticationResponseDTO autenticationResponseDTO = g.fromJson(postResponse.getBody(),
+				AutenticationResponseDTO.class);
+		userToken.setUsername(autenticationResponseDTO.getUsername());
+		userToken.setToken(autenticationResponseDTO.getToken());
+		String usuario = userTokenRepository.findByUsername(autenticationResponseDTO.getUsername());
+		if (usuario == null) {
+			userTokenRepository.save(userToken);
+		} else {
+			userTokenRepository.updateToken(autenticationResponseDTO.getToken(),
+					autenticationResponseDTO.getUsername());
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/registro/listarUsuarios", HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object registroDto = g.fromJson(response.getBody(), Object.class);
-				listadoUsuarios = registroDto;
-				res.put("respuesta", listadoUsuarios);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			  res.put("respuesta", e.getResponseBodyAsString());
-			  return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @GetMapping("/registro/listarUsuario/{id}")
-    public  ResponseEntity<Object> listarUsuariosId(@PathVariable String id) {
-        Object listadoUsuarios = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		currentToken = userTokenRepository.obtenerToken(autenticationResponseDTO.getUsername());
+
+		return autenticationResponseDTO;
+
+	}
+
+	@GetMapping("/registro/listarUsuarios")
+	public ResponseEntity<Object> listarUsuarios() {
+
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/registro/listarUsuarios";
+		Object listadoUsuarios = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/registro/listarUsuario/"+id, HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object registroDto = g.fromJson(response.getBody(), Object.class);
-				listadoUsuarios = registroDto;
-				res.put("respuesta", listadoUsuarios);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			    res.put("respuesta", e.getResponseBodyAsString());
-			    return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/registro/registrarUsuario")
-    public ResponseEntity<Object> registrarUsuario(@RequestBody RegistroDTO registroDTO) {
-        Object listadoUsuarios = null;
-        Map<String, Object> res = new HashMap<>();
-        try {
-			ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:9092/registro/registrarUsuario", registroDTO, String.class);
-				
-			    Gson g = new Gson();
-		        Object registroDto = g.fromJson(response.getBody(), Object.class);
-				listadoUsuarios = registroDto;
-				res.put("respuesta", listadoUsuarios);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.GET, entity, String.class);
+
+			Gson g = new Gson();
+			Object registroDto = g.fromJson(response.getBody(), Object.class);
+			listadoUsuarios = registroDto;
+			res.put("respuesta", listadoUsuarios);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PutMapping("/registro/modificarUsuario/{id}")
-    public  ResponseEntity<Object> modificarUsuario(@RequestBody RegistroDTO registroDTO, @PathVariable Long id) {
-        Object listadoUsuarios = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@GetMapping("/registro/listarUsuario/{id}")
+	public ResponseEntity<Object> listarUsuariosId(@PathVariable String id) {
+
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/registro/listarUsuario/";
+		Object listadoUsuarios = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<RegistroDTO> entity = new HttpEntity<>(registroDTO, headers);
-        
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/registro/modificarUsuario/"+id, HttpMethod.PUT, entity, String.class);
-			
-			    Gson g = new Gson();
-		        Object registroDto = g.fromJson(response.getBody(), Object.class);
-				listadoUsuarios = registroDto;
-				res.put("respuesta", listadoUsuarios);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.GET, entity, String.class);
+
+			Gson g = new Gson();
+			Object registroDto = g.fromJson(response.getBody(), Object.class);
+			listadoUsuarios = registroDto;
+			res.put("respuesta", listadoUsuarios);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @DeleteMapping("/registro/eliminarUsuario/{id}")
-    public  ResponseEntity<Object> eliminarUsuario(@PathVariable String id) {
-        Object listadoUsuarios = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@PostMapping("/registro/registrarUsuario")
+	public ResponseEntity<Object> registrarUsuario(@RequestBody RegistroDTO registroDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/registro/registrarUsuario";
+		Object listadoUsuarios = null;
+		Map<String, Object> res = new HashMap<>();
+		try {
+			ResponseEntity<String> response = restTemplate.postForEntity(baseUrl, registroDTO, String.class);
+
+			Gson g = new Gson();
+			Object registroDto = g.fromJson(response.getBody(), Object.class);
+			listadoUsuarios = registroDto;
+			res.put("respuesta", listadoUsuarios);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PutMapping("/registro/modificarUsuario/{id}")
+	public ResponseEntity<Object> modificarUsuario(@RequestBody RegistroDTO registroDTO, @PathVariable Long id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/registro/modificarUsuario/";
+		Object listadoUsuarios = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/registro/eliminarUsuario/"+id, HttpMethod.DELETE, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object registroDto = g.fromJson(response.getBody(), Object.class);
-				listadoUsuarios = registroDto;
-				res.put("respuesta", listadoUsuarios);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<RegistroDTO> entity = new HttpEntity<>(registroDTO, headers);
+
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.PUT, entity, String.class);
+
+			Gson g = new Gson();
+			Object registroDto = g.fromJson(response.getBody(), Object.class);
+			listadoUsuarios = registroDto;
+			res.put("respuesta", listadoUsuarios);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    /*  Tipo Id */
-    
-    @GetMapping("/tipoidentificacion/obtenerTipoId")
-    public  ResponseEntity<Object> listarTiposId() {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@DeleteMapping("/registro/eliminarUsuario/{id}")
+	public ResponseEntity<Object> eliminarUsuario(@PathVariable String id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/registro/eliminarUsuario/";
+		Object listadoUsuarios = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/tipoidentificacion/obtenerTipoId", HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.DELETE, entity,
+					String.class);
+
+			Gson g = new Gson();
+			Object registroDto = g.fromJson(response.getBody(), Object.class);
+			listadoUsuarios = registroDto;
+			res.put("respuesta", listadoUsuarios);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @GetMapping("/tipoidentificacion/obtenerTipoId/{id}")
-    public  ResponseEntity<Object> listarTipoId(@PathVariable String id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	/* Tipo Id */
+
+	@GetMapping("/tipoidentificacion/obtenerTipoId")
+	public ResponseEntity<Object> listarTiposId() {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/tipoidentificacion/obtenerTipoId";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/tipoidentificacion/obtenerTipoId/"+id, HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("respuesta", e.getResponseBodyAsString());
-			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/tipoidentificacion/registrarTipoId")
-    public ResponseEntity<Object> registrarTipoID(@RequestBody TipoIdentificacionDTO tipoIdDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<TipoIdentificacionDTO> entity = new HttpEntity<>(tipoIdDTO, headers);
-        try {
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.GET, entity, String.class);
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/tipoidentificacion/registrarTipoId", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PutMapping("/tipoidentificacion/modificarTipoId/{id}")
-    public  ResponseEntity<Object> modificarTipo(@RequestBody TipoIdentificacionDTO tipoIdDTO, @PathVariable Long id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@GetMapping("/tipoidentificacion/obtenerTipoId/{id}")
+	public ResponseEntity<Object> listarTipoId(@PathVariable String id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/tipoidentificacion/obtenerTipoId/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<TipoIdentificacionDTO> entity = new HttpEntity<>(tipoIdDTO, headers);
-        
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/tipoidentificacion/modificarTipoId/"+id, HttpMethod.PUT, entity, String.class);
-			
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.GET, entity, String.class);
+
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @DeleteMapping("/tipoidentificacion/eliminarTipoId/{id}")
-    public ResponseEntity<Object> eliminarTipoId(@PathVariable String id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@PostMapping("/tipoidentificacion/registrarTipoId")
+	public ResponseEntity<Object> registrarTipoID(@RequestBody TipoIdentificacionDTO tipoIdDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/tipoidentificacion/registrarTipoId";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<TipoIdentificacionDTO> entity = new HttpEntity<>(tipoIdDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PutMapping("/tipoidentificacion/modificarTipoId/{id}")
+	public ResponseEntity<Object> modificarTipo(@RequestBody TipoIdentificacionDTO tipoIdDTO, @PathVariable Long id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/tipoidentificacion/modificarTipoId/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/tipoidentificacion/eliminarTipoId/"+id, HttpMethod.DELETE, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<TipoIdentificacionDTO> entity = new HttpEntity<>(tipoIdDTO, headers);
+
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.PUT, entity, String.class);
+
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    /*  Propiedad */
-    
-    @GetMapping("/propiedad/listarPropiedades")
-    public  ResponseEntity<Object> listarPropiedades() {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@DeleteMapping("/tipoidentificacion/eliminarTipoId/{id}")
+	public ResponseEntity<Object> eliminarTipoId(@PathVariable String id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/tipoidentificacion/eliminarTipoId/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/listarPropiedades", HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("estado", e.getMostSpecificCause()+ " " + e.getRawStatusCode());
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.DELETE, entity,
+					String.class);
+
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @GetMapping("/propiedad/listarPropiedad/{id}")
-    public  ResponseEntity<Object> listarPropiedad(@PathVariable String id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	/* Propiedad */
+
+	@GetMapping("/propiedad/listarPropiedades")
+	public ResponseEntity<Object> listarPropiedades() {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/listarPropiedades";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/listarPropiedad/"+id, HttpMethod.GET, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("respuesta", e.getResponseBodyAsString());
-			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/propiedad/registrarPropiedad")
-    public  ResponseEntity<Object> registrarPropiedad(@RequestBody PropiedadDTO propiedadDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<PropiedadDTO> entity = new HttpEntity<>(propiedadDTO, headers);
-        try {
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.GET, entity, String.class);
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/registrarPropiedad", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("estado", e.getMostSpecificCause() + " " + e.getRawStatusCode());
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PutMapping("/propiedad/modificarPropiedad/{id}")
-    public  ResponseEntity<Object> modificarPropiedad(@RequestBody PropiedadDTO propiedadDTO, @PathVariable Long id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@GetMapping("/propiedad/listarPropiedad/{id}")
+	public ResponseEntity<Object> listarPropiedad(@PathVariable String id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/listarPropiedad/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<PropiedadDTO> entity = new HttpEntity<>(propiedadDTO, headers);
-        
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/modificarPropiedad/"+id, HttpMethod.PUT, entity, String.class);
-			
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.GET, entity, String.class);
+
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @DeleteMapping("/propiedad/eliminarPropiedad/{id}")
-    public  ResponseEntity<Object> eliminarPropiedad(@PathVariable String id) {
-        Object listado = null;
-        Map<String, Object> res = new HashMap<>();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (currentToken != null) {
-            headers.set("Authorization", "Bearer "+currentToken);
+		}
+	}
+
+	@PostMapping("/propiedad/registrarPropiedad")
+	public ResponseEntity<Object> registrarPropiedad(@RequestBody PropiedadDTO propiedadDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/registrarPropiedad";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<PropiedadDTO> entity = new HttpEntity<>(propiedadDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PutMapping("/propiedad/modificarPropiedad/{id}")
+	public ResponseEntity<Object> modificarPropiedad(@RequestBody PropiedadDTO propiedadDTO, @PathVariable Long id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/modificarPropiedad/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
 		}
 
-        HttpEntity<String> entity = new HttpEntity<String>(headers);
-        try {
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/eliminarPropiedad/"+id, HttpMethod.DELETE, entity, String.class);
-				
-			    Gson g = new Gson();
-		        Object listadoDto = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDto;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("respuesta", e.getResponseBodyAsString());
-			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    /*  Filtro con criteria query api: Genera automáticamente la consulta de acuerdo
-     * a los valores enviados*/
-    
-    @PostMapping("/propiedad/filtrarPropiedad")
-    public ResponseEntity<Object> filtrarPropiedad(@RequestBody FiltroDTO filtroDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
-        try {
+		HttpEntity<PropiedadDTO> entity = new HttpEntity<>(propiedadDTO, headers);
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/filtrarPropiedad", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("respuesta", e.getResponseBodyAsString());
-			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/propiedad/filtrarPorValor")
-    public ResponseEntity<Object> filtrarValor(@RequestBody FiltroDTO filtroDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
-        try {
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.PUT, entity, String.class);
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/filtrarPorValor", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
-			res.put("respuesta", e.getResponseBodyAsString());
-			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/propiedad/filtrarPorArea")
-    public  ResponseEntity<Object> filtrarPorArea(@RequestBody FiltroDTO filtroDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
-        try {
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/filtrarPorArea", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    @PostMapping("/propiedad/filtrarPorHabitaciones")
-    public  ResponseEntity<Object> filtrarPorHabitaciones(@RequestBody FiltroDTO filtroDTO) {
-    	  Object listado = null;
-          Map<String, Object> res = new HashMap<>();
-          HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          if (currentToken != null) {
-              headers.set("Authorization", "Bearer "+currentToken);
-  		}
-          HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
-        try {
+		}
+	}
 
-			ResponseEntity<String> response = restTemplate.exchange("http://localhost:9092/propiedad/filtrarPorHabitaciones", HttpMethod.POST, entity, String.class);
-        		Gson g = new Gson();
-		        Object listadoDTO = g.fromJson(response.getBody(), Object.class);
-		        listado = listadoDTO;
-				res.put("respuesta", listado);
-				return new ResponseEntity<>(res, HttpStatus.OK);
-		
-		} catch(HttpStatusCodeException e){
+	@DeleteMapping("/propiedad/eliminarPropiedad/{id}")
+	public ResponseEntity<Object> eliminarPropiedad(@PathVariable String id) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/eliminarPropiedad/";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+
+		HttpEntity<String> entity = new HttpEntity<String>(headers);
+		try {
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl + id, HttpMethod.DELETE, entity,
+					String.class);
+
+			Gson g = new Gson();
+			Object listadoDto = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDto;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
 			res.put("respuesta", e.getResponseBodyAsString());
 			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
-		} 
-    }
-    
-    
+		}
+	}
+
+	/*
+	 * Filtro con criteria query api: Genera automáticamente la consulta de acuerdo
+	 * a los valores enviados
+	 */
+
+	@PostMapping("/propiedad/filtrarPropiedad")
+	public ResponseEntity<Object> filtrarPropiedad(@RequestBody FiltroDTO filtroDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/filtrarPropiedad";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PostMapping("/propiedad/filtrarPorValor")
+	public ResponseEntity<Object> filtrarValor(@RequestBody FiltroDTO filtroDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/filtrarPorValor";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PostMapping("/propiedad/filtrarPorArea")
+	public ResponseEntity<Object> filtrarPorArea(@RequestBody FiltroDTO filtroDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/filtrarPorArea";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
+
+	@PostMapping("/propiedad/filtrarPorHabitaciones")
+	public ResponseEntity<Object> filtrarPorHabitaciones(@RequestBody FiltroDTO filtroDTO) {
+		ServiceInstance serviceInstance = loadBalancer.choose("proyecto-inmobiliaria");
+		System.out.println(serviceInstance.getUri());
+		String baseUrl = serviceInstance.getUri().toString();
+		baseUrl = baseUrl + "/propiedad/filtrarPorHabitaciones";
+		Object listado = null;
+		Map<String, Object> res = new HashMap<>();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		if (currentToken != null) {
+			headers.set("Authorization", "Bearer " + currentToken);
+		}
+		HttpEntity<FiltroDTO> entity = new HttpEntity<>(filtroDTO, headers);
+		try {
+
+			ResponseEntity<String> response = restTemplate.exchange(baseUrl, HttpMethod.POST, entity, String.class);
+			Gson g = new Gson();
+			Object listadoDTO = g.fromJson(response.getBody(), Object.class);
+			listado = listadoDTO;
+			res.put("respuesta", listado);
+			return new ResponseEntity<>(res, HttpStatus.OK);
+
+		} catch (HttpStatusCodeException e) {
+			res.put("respuesta", e.getResponseBodyAsString());
+			return new ResponseEntity<>(res, HttpStatus.valueOf(e.getRawStatusCode()));
+		}
+	}
 
 }
